@@ -8,6 +8,7 @@ type Towers = Map<string, number[]>;
 
 function App() {
   const [towers, setTowers] = useState<Towers>(new Map());
+  const [userWon, setUserWon] = useState<boolean>(false);
 
   /**
    * ? no need to keep track of the "to" as that will
@@ -83,75 +84,94 @@ function App() {
     });
   };
 
+  //* as soon as the third column will have all of the items (5)
+  //* the user has finished playing the game
+  useEffect(() => {
+    const towersSize: number = towers.size;
+    const [, lastTowerItems] = [...towers][towersSize - 1] ?? [];
+
+    if (Array.isArray(lastTowerItems) && lastTowerItems.length >= 5) {
+      setUserWon(true);
+    }
+  }, [towers]);
+
   return (
     <div className='App'>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${DEFAULT_NUMBER_TOWERS}, minmax(200px, 200px))`,
-          gap: '5rem',
-        }}
-      >
-        {[...towers].map(([towerId, towerItems]: [string, number[]], _: number) => {
-          return (
-            <div
-              key={towerId}
-              onDrop={handleItemDrop}
-              onDragOver={preventDefault}
-              data-tower-id={towerId}
-              style={{ display: 'flex', justifyContent: 'center' }}
-            >
+      {userWon ? (
+        <React.Fragment>
+          <h1>Congrats! You finished the game!</h1>
+        </React.Fragment>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${DEFAULT_NUMBER_TOWERS}, minmax(200px, 200px))`,
+            gap: '5rem',
+          }}
+        >
+          {[...towers].map(([towerId, towerItems]: [string, number[]], _: number) => {
+            return (
               <div
-                className='towerStick'
-                style={{
-                  height: '400px',
-                  width: '2px',
-                  backgroundColor: 'red',
-                  borderTopRightRadius: '3px',
-                  borderTopLeftRadius: '3px',
-                  position: 'relative',
-                }}
+                key={towerId}
+                onDrop={handleItemDrop}
+                onDragOver={preventDefault}
+                data-tower-id={towerId}
+                style={{ display: 'flex', justifyContent: 'center' }}
               >
-                {towerItems.map((item: number, index: number, arr: typeof towerItems) => {
-                  const isFirstItemOnStack = index === arr.length - 1;
+                <div
+                  className='towerStick'
+                  style={{
+                    height: '400px',
+                    width: '2px',
+                    backgroundColor: 'red',
+                    borderTopRightRadius: '3px',
+                    borderTopLeftRadius: '3px',
+                    position: 'relative',
+                  }}
+                >
+                  {towerItems.map(
+                    (item: number, index: number, arr: typeof towerItems) => {
+                      const isFirstItemOnStack = index === arr.length - 1;
 
-                  return (
-                    <div
-                      key={`item-${item}-towerId-${towerId}`}
-                      draggable={isFirstItemOnStack}
-                      onDragStart={handleItemDrag}
-                      data-tower-id={towerId}
-                      data-item={item}
-                      style={{
-                        height: '50px',
-                        width: `calc(${item} * 2rem)`,
-                        backgroundColor: 'orange',
-                        borderRadius: '3px',
-                        border: '1px solid',
-                        position: 'absolute',
-                        //* the bottom position will be calculated
-                        //* using the item height (50px) + the border px
-                        //* value multiplied by the element index
-                        //* in order to stack them on top of another
-                        bottom: `calc(((50px + 1px) * ${index}))`,
-                        left: '50%',
-                        //? no need to use translate (only X or Y)
-                        transform: 'translate(-50%, 0)',
-                        cursor: isFirstItemOnStack ? 'grab' : 'not-allowed',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                    >
-                      {item}
-                    </div>
-                  );
-                })}
+                      return (
+                        <div
+                          key={`item-${item}-towerId-${towerId}`}
+                          draggable={isFirstItemOnStack}
+                          onDragStart={handleItemDrag}
+                          data-tower-id={towerId}
+                          data-item={item}
+                          style={{
+                            height: '50px',
+                            width: `calc(${item} * 2rem)`,
+                            backgroundColor: 'orange',
+                            borderRadius: '3px',
+                            border: '1px solid',
+                            position: 'absolute',
+                            //* the bottom position will be calculated
+                            //* using the item height (50px) + the border px
+                            //* value multiplied by the element index
+                            //* in order to stack them on top of another
+                            bottom: `calc(((50px + 1px) * ${index}))`,
+                            left: '50%',
+                            //? no need to use translate (only X or Y)
+                            transform: 'translate(-50%, 0)',
+                            cursor: isFirstItemOnStack ? 'grab' : 'not-allowed',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {item}
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
