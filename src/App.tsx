@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
+import { preventDefault } from './helpers/prevent-default';
 
 const DEFAULT_NUMBER_TOWERS = 3;
 
@@ -7,6 +8,20 @@ type Towers = Map<string, number[]>;
 
 function App() {
   const [towers, setTowers] = useState<Towers>(new Map());
+
+  /**
+   * ? no need to keep track of the "to" as that will
+   * ? be handled into the function (redudant data)
+   */
+  const itemDraggedInformation = useRef<{
+    item: number | null;
+    from: string | null;
+    to: string | null;
+  }>({
+    item: null,
+    from: null,
+    to: null,
+  });
 
   /**
    * As soon as the component is mounted, I need to
@@ -28,6 +43,46 @@ function App() {
     setTowers(new Map(initialStateTowers));
   }, []);
 
+  const handleItemDrag = (e: React.DragEvent<HTMLDivElement>): void => {
+    const { dataset } = e.target as HTMLDivElement;
+    const { towerId, item } = dataset;
+
+    if (typeof towerId === 'undefined' || typeof item === 'undefined') return;
+    if (typeof +item !== 'number') return;
+
+    itemDraggedInformation.current = {
+      ...itemDraggedInformation.current,
+      item: +item,
+      from: towerId,
+    };
+  };
+
+  /**
+   * ![LINE 101] Is there a way to get the data attribute directly
+   * ! from the parent element in order to avoid making a duplicate
+   */
+
+  const handleItemDrop = (e: React.DragEvent<HTMLDivElement>): void => {
+    const { dataset } = e.target as HTMLDivElement;
+    const { towerId: arrivalTowerId } = dataset;
+    const { from: departureTowerId, item } = itemDraggedInformation.current;
+
+    if (typeof arrivalTowerId === 'undefined' || !departureTowerId || !item) return;
+
+    setTowers((prevTowers) => {
+      const updatedTowers = new Map(prevTowers);
+
+      const departureTowerPrevItems: number[] = updatedTowers.get(departureTowerId) ?? [];
+      const lastItem: number | undefined = departureTowerPrevItems.pop();
+      if (typeof lastItem === 'undefined') return prevTowers;
+
+      const arrivalTowerPrevItems: number[] = updatedTowers.get(arrivalTowerId) ?? [];
+      updatedTowers.set(arrivalTowerId, [...arrivalTowerPrevItems, lastItem]);
+
+      return updatedTowers;
+    });
+  };
+
   return (
     <div className='App'>
       <div
@@ -39,7 +94,13 @@ function App() {
       >
         {[...towers].map(([towerId, towerItems]: [string, number[]], _: number) => {
           return (
-            <div key={towerId} style={{ display: 'flex', justifyContent: 'center' }}>
+            <div
+              key={towerId}
+              onDrop={handleItemDrop}
+              onDragOver={preventDefault}
+              data-tower-id={towerId}
+              style={{ display: 'flex', justifyContent: 'center' }}
+            >
               <div
                 className='towerStick'
                 style={{
@@ -51,10 +112,16 @@ function App() {
                   position: 'relative',
                 }}
               >
-                {towerItems.map((item: number, index: number) => {
+                {towerItems.map((item: number, index: number, arr: typeof towerItems) => {
+                  const isFirstItemOnStack = index === arr.length - 1;
+
                   return (
                     <div
                       key={`item-${item}-towerId-${towerId}`}
+                      draggable={isFirstItemOnStack}
+                      onDragStart={handleItemDrag}
+                      data-tower-id={towerId}
+                      data-item={item}
                       style={{
                         height: '50px',
                         width: `calc(${item} * 2rem)`,
@@ -70,7 +137,7 @@ function App() {
                         left: '50%',
                         //? no need to use translate (only X or Y)
                         transform: 'translate(-50%, 0)',
-                        cursor: 'pointer',
+                        cursor: isFirstItemOnStack ? 'grab' : 'not-allowed',
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
