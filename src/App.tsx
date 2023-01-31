@@ -6,23 +6,13 @@ const DEFAULT_NUMBER_TOWERS = 3;
 
 type Towers = Map<string, number[]>;
 
+/**
+ * TODO: keep track of the user moves through the whole game and the time
+ */
 function App() {
   const [towers, setTowers] = useState<Towers>(new Map());
   const [userWon, setUserWon] = useState<boolean>(false);
-
-  /**
-   * ? no need to keep track of the "to" as that will
-   * ? be handled into the function (redudant data)
-   */
-  const itemDraggedInformation = useRef<{
-    item: number | null;
-    from: string | null;
-    to: string | null;
-  }>({
-    item: null,
-    from: null,
-    to: null,
-  });
+  const towerItemDraggedFrom = useRef<string | null>(null);
 
   /**
    * As soon as the component is mounted, I need to
@@ -44,31 +34,52 @@ function App() {
     setTowers(new Map(initialStateTowers));
   }, []);
 
-  const handleItemDrag = (e: React.DragEvent<HTMLDivElement>): void => {
-    const { dataset } = e.target as HTMLDivElement;
-    const { towerId, item } = dataset;
+  /**
+   * @desc recursively check if the HTML element contains
+   * the data attribute based on the key param passed.
+   *
+   * TODO: move the function below to utils folder
+   */
+  const recursivelyCheckDataAttibute = ({
+    currentElement,
+    dataAttributeKey,
+    stepsTaken = 0,
+  }: {
+    currentElement: HTMLElement | null;
+    dataAttributeKey: string;
+    stepsTaken?: number;
+  }): string | null => {
+    if (!currentElement || stepsTaken >= 3) return null;
 
-    if (typeof towerId === 'undefined' || typeof item === 'undefined') return;
-    if (typeof +item !== 'number') return;
+    const dataAttributeValue: string | undefined =
+      currentElement.dataset[dataAttributeKey];
 
-    itemDraggedInformation.current = {
-      ...itemDraggedInformation.current,
-      item: +item,
-      from: towerId,
-    };
+    return typeof dataAttributeValue === 'string'
+      ? dataAttributeValue
+      : recursivelyCheckDataAttibute({
+          currentElement: currentElement.parentElement,
+          dataAttributeKey,
+          stepsTaken: stepsTaken + 1,
+        });
   };
 
-  /**
-   * ![LINE 101] Is there a way to get the data attribute directly
-   * ! from the parent element in order to avoid making a duplicate
-   */
+  const handleItemDrag = (e: React.DragEvent<HTMLDivElement>) => {
+    const towerId = recursivelyCheckDataAttibute({
+      currentElement: e.target as HTMLDivElement,
+      dataAttributeKey: 'towerId',
+    });
+
+    if (towerId) {
+      towerItemDraggedFrom.current = towerId;
+    }
+  };
 
   const handleItemDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     const { dataset } = e.target as HTMLDivElement;
     const { towerId: arrivalTowerId } = dataset;
-    const { from: departureTowerId, item } = itemDraggedInformation.current;
+    const departureTowerId = towerItemDraggedFrom.current;
 
-    if (typeof arrivalTowerId === 'undefined' || !departureTowerId || !item) return;
+    if (typeof arrivalTowerId === 'undefined' || !departureTowerId) return;
 
     setTowers((prevTowers) => {
       const updatedTowers = new Map(prevTowers);
@@ -138,8 +149,6 @@ function App() {
                           key={`item-${item}-towerId-${towerId}`}
                           draggable={isFirstItemOnStack}
                           onDragStart={handleItemDrag}
-                          data-tower-id={towerId}
-                          data-item={item}
                           style={{
                             height: '50px',
                             width: `calc(${item} * 2rem)`,
